@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Secure Code Review Report</title>
+<style>
+  :root {
+    --bg: #0d1117; --card: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif;
+          background: var(--bg); color: var(--text); padding: 2rem; }
+  h1 { font-size: 1.8rem; color: var(--accent); margin-bottom: .25rem; }
+  .meta { color: var(--muted); font-size: .9rem; margin-bottom: 2rem; }
+  .summary-grid { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem; }
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.5rem; min-width: 120px; text-align: center;
+  }
+  .stat-num { font-size: 2rem; font-weight: 800; }
+  .stat-lbl { font-size: .8rem; color: var(--muted); }
+  .sev-row { display: flex; align-items: center; gap: .75rem; margin-bottom: .5rem; }
+  .sev-label { width: 80px; font-weight: 700; font-size: .85rem; }
+  .sev-bar-track { flex: 1; height: 10px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .sev-bar-fill  { height: 100%; border-radius: 99px; transition: width .6s; }
+  .sev-count { width: 30px; text-align: right; font-size: .85rem; }
+  .chart-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.5rem; margin-bottom: 2rem; max-width: 500px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  th {
+    background: #21262d; padding: .6rem .75rem; text-align: left;
+    border-bottom: 2px solid var(--border); color: var(--muted);
+    font-size: .75rem; text-transform: uppercase; letter-spacing: .05em;
+  }
+  td { padding: .6rem .75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: rgba(88,166,255,.05); }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 99px;
+    font-size: .75rem; font-weight: 700; color: #000;
+  }
+  code { font-family: 'Consolas', monospace; font-size: .8rem; }
+  .code-snippet {
+    background: #21262d; padding: 2px 6px; border-radius: 4px;
+    display: block; max-width: 300px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
+  .fix-cell { color: #3fb950; font-size: .82rem; }
+  a { color: var(--accent); }
+  .table-wrap { overflow-x: auto; }
+  footer { margin-top: 3rem; color: var(--muted); font-size: .8rem; text-align: center; }
+</style>
+</head>
+<body>
+<h1>🔍 Secure Code Review Report</h1>
+<div class="meta">
+  Target: <strong>vulnerable_app/app.py</strong> &nbsp;|&nbsp;
+  Scanned: <strong>2026-05-13 13:45:18</strong> &nbsp;|&nbsp;
+  Total Issues: <strong>16</strong>
+</div>
+
+<div class="summary-grid">
+  <div class="stat-card">
+    <div class="stat-num" style="color:#f85149">6</div>
+    <div class="stat-lbl">CRITICAL</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" style="color:#ff7b72">6</div>
+    <div class="stat-lbl">HIGH</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" style="color:#d29922">4</div>
+    <div class="stat-lbl">MEDIUM</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" style="color:#58a6ff">0</div>
+    <div class="stat-lbl">LOW</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" style="color:#8b949e">0</div>
+    <div class="stat-lbl">INFO</div>
+  </div>
+</div>
+
+<div class="chart-card">
+  <h3 style="margin-bottom:1rem;font-size:1rem">Severity Distribution</h3>
+  
+            <div class="sev-row">
+              <span class="sev-label" style="color:#f85149">CRITICAL</span>
+              <div class="sev-bar-track">
+                <div class="sev-bar-fill" style="width:38%;background:#f85149"></div>
+              </div>
+              <span class="sev-count">6</span>
+            </div>
+            <div class="sev-row">
+              <span class="sev-label" style="color:#ff7b72">HIGH</span>
+              <div class="sev-bar-track">
+                <div class="sev-bar-fill" style="width:38%;background:#ff7b72"></div>
+              </div>
+              <span class="sev-count">6</span>
+            </div>
+            <div class="sev-row">
+              <span class="sev-label" style="color:#d29922">MEDIUM</span>
+              <div class="sev-bar-track">
+                <div class="sev-bar-fill" style="width:25%;background:#d29922"></div>
+              </div>
+              <span class="sev-count">4</span>
+            </div>
+</div>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>#</th><th>Severity</th><th>Vulnerability</th><th>Rule</th>
+      <th>CWE</th><th>Location</th><th>Code</th>
+      <th>Description</th><th>Recommendation</th>
+    </tr>
+  </thead>
+  <tbody>
+        <tr>
+          <td>1</td>
+          <td><span class="badge" style="background:#f85149">CRITICAL</span></td>
+          <td><strong>Hardcoded Password</strong></td>
+          <td><code>CRED-01</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/798.html"
+                 target="_blank">CWE-798</a></td>
+          <td>app.py:24</td>
+          <td><code class="code-snippet">DB_PASSWORD = "admin:password123"</code></td>
+          <td>Plaintext password hardcoded in source code.</td>
+          <td class="fix-cell">Use environment variables (os.environ) or a vault (HashiCorp Vault, AWS Secrets Manager).</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td><span class="badge" style="background:#f85149">CRITICAL</span></td>
+          <td><strong>SQL Injection (string concat)</strong></td>
+          <td><code>SQL-01</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/89.html"
+                 target="_blank">CWE-89</a></td>
+          <td>app.py:39</td>
+          <td><code class="code-snippet">conn.execute("INSERT OR IGNORE INTO users VALUES (1,'admin','" +</code></td>
+          <td>User-controlled data concatenated directly into SQL query string.</td>
+          <td class="fix-cell">Use parameterised queries: cursor.execute('SELECT ... WHERE x=?', (val,))</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td><span class="badge" style="background:#f85149">CRITICAL</span></td>
+          <td><strong>SQL Injection (string concat)</strong></td>
+          <td><code>SQL-01</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/89.html"
+                 target="_blank">CWE-89</a></td>
+          <td>app.py:41</td>
+          <td><code class="code-snippet">conn.execute("INSERT OR IGNORE INTO users VALUES (2,'alice','" +</code></td>
+          <td>User-controlled data concatenated directly into SQL query string.</td>
+          <td class="fix-cell">Use parameterised queries: cursor.execute('SELECT ... WHERE x=?', (val,))</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td><span class="badge" style="background:#f85149">CRITICAL</span></td>
+          <td><strong>SQL Injection (string concat)</strong></td>
+          <td><code>SQL-01</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/89.html"
+                 target="_blank">CWE-89</a></td>
+          <td>app.py:99</td>
+          <td><code class="code-snippet">results = conn.execute("SELECT username, role FROM users WHERE username LIKE '%" + query + "%'").fetchall()</code></td>
+          <td>User-controlled data concatenated directly into SQL query string.</td>
+          <td class="fix-cell">Use parameterised queries: cursor.execute('SELECT ... WHERE x=?', (val,))</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td><span class="badge" style="background:#f85149">CRITICAL</span></td>
+          <td><strong>OS Command Injection</strong></td>
+          <td><code>CMD-01</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/78.html"
+                 target="_blank">CWE-78</a></td>
+          <td>app.py:115</td>
+          <td><code class="code-snippet">result = subprocess.check_output("ping -c 1 " + host, shell=True,</code></td>
+          <td>shell=True with dynamic input allows arbitrary command execution.</td>
+          <td class="fix-cell">Pass commands as a list (no shell=True). Validate/whitelist all inputs.</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td><span class="badge" style="background:#f85149">CRITICAL</span></td>
+          <td><strong>Insecure Deserialization — pickle</strong></td>
+          <td><code>DESER-01</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/502.html"
+                 target="_blank">CWE-502</a></td>
+          <td>app.py:150</td>
+          <td><code class="code-snippet">obj = pickle.loads(bytes.fromhex(data))   # arbitrary code execution</code></td>
+          <td>pickle.loads() on untrusted data allows arbitrary code execution.</td>
+          <td class="fix-cell">Never deserialize untrusted data with pickle. Use JSON or a safe schema validator.</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td><span class="badge" style="background:#ff7b72">HIGH</span></td>
+          <td><strong>Weak Hash — MD5</strong></td>
+          <td><code>CRYPT-01</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/327.html"
+                 target="_blank">CWE-327</a></td>
+          <td>app.py:40</td>
+          <td><code class="code-snippet">hashlib.md5(b"password123").hexdigest() + "','admin')")</code></td>
+          <td>MD5 is cryptographically broken and unsuitable for password hashing.</td>
+          <td class="fix-cell">Use bcrypt, argon2-cffi, or hashlib.scrypt with a random salt.</td>
+        </tr>
+        <tr>
+          <td>8</td>
+          <td><span class="badge" style="background:#ff7b72">HIGH</span></td>
+          <td><strong>Weak Hash — MD5</strong></td>
+          <td><code>CRYPT-01</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/327.html"
+                 target="_blank">CWE-327</a></td>
+          <td>app.py:42</td>
+          <td><code class="code-snippet">hashlib.md5(b"alice123").hexdigest() + "','user')")</code></td>
+          <td>MD5 is cryptographically broken and unsuitable for password hashing.</td>
+          <td class="fix-cell">Use bcrypt, argon2-cffi, or hashlib.scrypt with a random salt.</td>
+        </tr>
+        <tr>
+          <td>9</td>
+          <td><span class="badge" style="background:#ff7b72">HIGH</span></td>
+          <td><strong>Weak Hash — MD5</strong></td>
+          <td><code>CRYPT-01</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/327.html"
+                 target="_blank">CWE-327</a></td>
+          <td>app.py:58</td>
+          <td><code class="code-snippet">"' AND password='" + hashlib.md5(password.encode()).hexdigest() + "'"</code></td>
+          <td>MD5 is cryptographically broken and unsuitable for password hashing.</td>
+          <td class="fix-cell">Use bcrypt, argon2-cffi, or hashlib.scrypt with a random salt.</td>
+        </tr>
+        <tr>
+          <td>10</td>
+          <td><span class="badge" style="background:#ff7b72">HIGH</span></td>
+          <td><strong>Auth check from client-supplied cookie</strong></td>
+          <td><code>AUTH-01</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/284.html"
+                 target="_blank">CWE-284</a></td>
+          <td>app.py:163</td>
+          <td><code class="code-snippet">role = request.cookies.get("role", "user")</code></td>
+          <td>Role/privilege read directly from a client cookie — trivially forgeable.</td>
+          <td class="fix-cell">Store roles server-side in the session (signed) or database, never in plain cookies.</td>
+        </tr>
+        <tr>
+          <td>11</td>
+          <td><span class="badge" style="background:#ff7b72">HIGH</span></td>
+          <td><strong>Weak Hash — MD5</strong></td>
+          <td><code>CRYPT-01</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/327.html"
+                 target="_blank">CWE-327</a></td>
+          <td>app.py:191</td>
+          <td><code class="code-snippet">(hashlib.md5(new_pass.encode()).hexdigest(), user))</code></td>
+          <td>MD5 is cryptographically broken and unsuitable for password hashing.</td>
+          <td class="fix-cell">Use bcrypt, argon2-cffi, or hashlib.scrypt with a random salt.</td>
+        </tr>
+        <tr>
+          <td>12</td>
+          <td><span class="badge" style="background:#ff7b72">HIGH</span></td>
+          <td><strong>Debug mode enabled</strong></td>
+          <td><code>CFG-01</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/94.html"
+                 target="_blank">CWE-94</a></td>
+          <td>app.py:201</td>
+          <td><code class="code-snippet">app.run(debug=True, host="0.0.0.0", port=5000)</code></td>
+          <td>Flask debug mode exposes an interactive debugger and stack traces.</td>
+          <td class="fix-cell">Set debug=False in production. Use environment variable: DEBUG=False.</td>
+        </tr>
+        <tr>
+          <td>13</td>
+          <td><span class="badge" style="background:#d29922">MEDIUM</span></td>
+          <td><strong>Hardcoded secret key</strong></td>
+          <td><code>CRYPT-03</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/321.html"
+                 target="_blank">CWE-321</a></td>
+          <td>app.py:21</td>
+          <td><code class="code-snippet">app.secret_key = "secret123"</code></td>
+          <td>Hardcoded Flask/Django secret key found in source.</td>
+          <td class="fix-cell">Load secret keys from environment variables or a secrets manager.</td>
+        </tr>
+        <tr>
+          <td>14</td>
+          <td><span class="badge" style="background:#d29922">MEDIUM</span></td>
+          <td><strong>Unsafe file save (user-supplied filename)</strong></td>
+          <td><code>PATH-02</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/22.html"
+                 target="_blank">CWE-22</a></td>
+          <td>app.py:138</td>
+          <td><code class="code-snippet">f.save(os.path.join("/var/uploads", f.filename))</code></td>
+          <td>File saved using client-supplied filename — path traversal risk.</td>
+          <td class="fix-cell">Use werkzeug.utils.secure_filename() and validate file extension and size.</td>
+        </tr>
+        <tr>
+          <td>15</td>
+          <td><span class="badge" style="background:#d29922">MEDIUM</span></td>
+          <td><strong>Debug/info endpoint exposed</strong></td>
+          <td><code>CFG-03</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/215.html"
+                 target="_blank">CWE-215</a></td>
+          <td>app.py:169</td>
+          <td><code class="code-snippet">@app.route("/debug")</code></td>
+          <td>Debug or configuration endpoint accessible via HTTP.</td>
+          <td class="fix-cell">Remove debug endpoints before deployment or protect with strong authentication.</td>
+        </tr>
+        <tr>
+          <td>16</td>
+          <td><span class="badge" style="background:#d29922">MEDIUM</span></td>
+          <td><strong>Binding to all interfaces (0.0.0.0)</strong></td>
+          <td><code>CFG-02</code></td>
+          <td><a href="https://cwe.mitre.org/data/definitions/605.html"
+                 target="_blank">CWE-605</a></td>
+          <td>app.py:201</td>
+          <td><code class="code-snippet">app.run(debug=True, host="0.0.0.0", port=5000)</code></td>
+          <td>App bound to all network interfaces — exposed beyond localhost.</td>
+          <td class="fix-cell">Bind to 127.0.0.1 in development. Use a reverse proxy (nginx) in production.</td>
+        </tr></tbody>
+</table>
+</div>
+
+<footer>
+  CodeAlpha Cybersecurity Internship — Task 3: Secure Coding Review &nbsp;|&nbsp;
+  Generated by reviewer.py
+</footer>
+</body>
+</html>

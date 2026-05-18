@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Secure Code Review — Findings Report</title>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--border:#30363d;--text:#e6edf3;--muted:#8b949e;--accent:#58a6ff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);padding:2rem}
+h1{font-size:1.9rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.2rem;margin:2rem 0 1rem;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:.4rem}
+.meta{color:var(--muted);font-size:.9rem;margin-bottom:2rem}
+.summary{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1rem 1.5rem;text-align:center;min-width:110px}
+.stat-n{font-size:2rem;font-weight:800}
+.stat-l{font-size:.8rem;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{background:#21262d;padding:.6rem .75rem;text-align:left;border-bottom:2px solid var(--border);color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em}
+td{padding:.65rem .75rem;border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover td{background:rgba(88,166,255,.05)}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:.75rem;font-weight:700;color:#000}
+.c{background:#f85149}.h{background:#ff7b72}.m{background:#d29922}.l{background:#58a6ff}.i{background:#8b949e;color:#fff}
+code{font-family:Consolas,monospace;font-size:.8rem;background:#21262d;padding:2px 5px;border-radius:4px}
+.snippet{display:block;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fix{color:#3fb950;font-size:.82rem}
+a{color:var(--accent)}
+.toc a{display:block;padding:.2rem 0;color:var(--muted);text-decoration:none;font-size:.9rem}
+.toc a:hover{color:var(--accent)}
+.section-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin-bottom:1.5rem}
+.vuln-id{font-size:.75rem;color:var(--muted);font-family:Consolas,monospace}
+.desc{color:var(--muted);font-size:.88rem;margin:.4rem 0}
+.rec{color:#3fb950;font-size:.88rem;margin-top:.4rem}
+footer{margin-top:3rem;color:var(--muted);font-size:.8rem;text-align:center}
+</style>
+</head>
+<body>
+
+<h1>🔍 Secure Code Review — Findings Report</h1>
+<div class="meta">
+  Target: <strong>vulnerable_app/app.py</strong> &nbsp;|&nbsp;
+  Language: <strong>Python / Flask</strong> &nbsp;|&nbsp;
+  Date: <strong>2026-05-13</strong> &nbsp;|&nbsp;
+  Reviewer: <strong>CodeAlpha Static Analyzer</strong>
+</div>
+
+<div class="summary">
+  <div class="stat"><div class="stat-n" style="color:#f85149">5</div><div class="stat-l">CRITICAL</div></div>
+  <div class="stat"><div class="stat-n" style="color:#ff7b72">9</div><div class="stat-l">HIGH</div></div>
+  <div class="stat"><div class="stat-n" style="color:#d29922">5</div><div class="stat-l">MEDIUM</div></div>
+  <div class="stat"><div class="stat-n" style="color:#58a6ff">1</div><div class="stat-l">LOW</div></div>
+  <div class="stat"><div class="stat-n" style="color:#8b949e">1</div><div class="stat-l">INFO</div></div>
+  <div class="stat"><div class="stat-n" style="color:var(--accent)">21</div><div class="stat-l">TOTAL</div></div>
+</div>
+
+<h2>Table of Contents</h2>
+<div class="toc">
+  <a href="#sql">SQL Injection (2)</a>
+  <a href="#cmd">Command Injection (2)</a>
+  <a href="#cred">Hardcoded Credentials (2)</a>
+  <a href="#crypt">Weak Cryptography (2)</a>
+  <a href="#deser">Insecure Deserialization (1)</a>
+  <a href="#xss">Cross-Site Scripting / SSTI (2)</a>
+  <a href="#path">Path Traversal (2)</a>
+  <a href="#auth">Broken Access Control (3)</a>
+  <a href="#cfg">Insecure Configuration (4)</a>
+  <a href="#csrf">Missing CSRF Protection (1)</a>
+</div>
+
+<!-- ═══ SQL INJECTION ═══ -->
+<h2 id="sql">💉 SQL Injection</h2>
+
+<div class="section-card">
+  <span class="badge c">CRITICAL</span>
+  <span class="vuln-id">SQL-01 · CWE-89 · Line 47</span>
+  <h3 style="margin:.5rem 0">Login SQL Injection</h3>
+  <p class="desc">Username and password are concatenated directly into the SQL query string. An attacker can input <code>' OR '1'='1</code> to bypass authentication entirely, or use UNION-based injection to dump the entire database.</p>
+  <code class="snippet">query = "SELECT * FROM users WHERE username='" + username + "' AND password='"</code>
+  <p class="rec">✅ Fix: Use parameterised queries:<br>
+  <code>db.execute("SELECT * FROM users WHERE username=? AND password=?", (username, hashed))</code></p>
+</div>
+
+<div class="section-card">
+  <span class="badge c">CRITICAL</span>
+  <span class="vuln-id">SQL-02 · CWE-89 · Line 68</span>
+  <h3 style="margin:.5rem 0">Search SQL Injection</h3>
+  <p class="desc">The <code>q</code> GET parameter is concatenated into a LIKE query. Allows data exfiltration, authentication bypass, and in some configurations, file read/write via SQL.</p>
+  <code class="snippet">"SELECT username, role FROM users WHERE username LIKE '%" + query + "%'"</code>
+  <p class="rec">✅ Fix: <code>db.execute("SELECT ... WHERE username LIKE ?", (f"%{query}%",))</code></p>
+</div>
+
+<!-- ═══ COMMAND INJECTION ═══ -->
+<h2 id="cmd">💻 OS Command Injection</h2>
+
+<div class="section-card">
+  <span class="badge c">CRITICAL</span>
+  <span class="vuln-id">CMD-01 · CWE-78 · Line 76</span>
+  <h3 style="margin:.5rem 0">Command Injection via ping endpoint</h3>
+  <p class="desc">The <code>host</code> parameter is passed directly to <code>subprocess.check_output()</code> with <code>shell=True</code>. An attacker can supply <code>localhost; cat /etc/passwd</code> to execute arbitrary OS commands.</p>
+  <code class="snippet">subprocess.check_output("ping -c 1 " + host, shell=True, ...)</code>
+  <p class="rec">✅ Fix: Use a list with <code>shell=False</code> and validate input with a strict regex:<br>
+  <code>subprocess.run(["ping", "-c", "1", host], shell=False, timeout=5)</code></p>
+</div>
+
+<div class="section-card">
+  <span class="badge h">HIGH</span>
+  <span class="vuln-id">CMD-02 · CWE-78 · General</span>
+  <h3 style="margin:.5rem 0">Avoid os.system()</h3>
+  <p class="desc"><code>os.system()</code> passes commands to the shell and is inherently injection-prone. It also provides no way to capture output safely.</p>
+  <p class="rec">✅ Fix: Replace all <code>os.system()</code> calls with <code>subprocess.run()</code> using a list of arguments.</p>
+</div>
+
+<!-- ═══ CREDENTIALS ═══ -->
+<h2 id="cred">🔑 Hardcoded Credentials</h2>
+
+<div class="section-card">
+  <span class="badge c">CRITICAL</span>
+  <span class="vuln-id">CRED-01 · CWE-798 · Lines 18–20</span>
+  <h3 style="margin:.5rem 0">Hardcoded Passwords &amp; Secret Key</h3>
+  <p class="desc">Admin credentials and the Flask secret key are hardcoded in source. Anyone with repository access can immediately compromise the application and forge session cookies.</p>
+  <code class="snippet">app.secret_key = "secret123" / ADMIN_PASS = "password123"</code>
+  <p class="rec">✅ Fix: Load all secrets from environment variables:<br>
+  <code>app.secret_key = os.environ["FLASK_SECRET_KEY"]</code></p>
+</div>
+
+<div class="section-card">
+  <span class="badge h">HIGH</span>
+  <span class="vuln-id">CRED-02 · CWE-798 · Line 18</span>
+  <h3 style="margin:.5rem 0">Weak / Guessable Secret Key</h3>
+  <p class="desc">Even if moved to an env var, <code>"secret123"</code> is trivially guessable. A weak secret key allows attackers to forge session cookies and impersonate any user.</p>
+  <p class="rec">✅ Fix: Generate a cryptographically random key: <code>secrets.token_hex(32)</code></p>
+</div>
+
+<!-- ═══ CRYPTOGRAPHY ═══ -->
+<h2 id="crypt">🔐 Weak Cryptography</h2>
+
+<div class="section-card">
+  <span class="badge h">HIGH</span>
+  <span class="vuln-id">CRYPT-01 · CWE-327 · Lines 30, 31, 107</span>
+  <h3 style="margin:.5rem 0">MD5 Password Hashing (No Salt)</h3>
+  <p class="desc">MD5 is cryptographically broken. Unsalted MD5 hashes are trivially cracked using rainbow tables. The entire user database can be compromised in seconds with freely available tools.</p>
+  <code class="snippet">hashlib.md5(b"password123").hexdigest()</code>
+  <p class="rec">✅ Fix: Use <strong>bcrypt</strong> or <strong>argon2</strong> with a random salt:<br>
+  <code>bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12))</code></p>
+</div>
+
+<!-- ═══ DESERIALIZATION ═══ -->
+<h2 id="deser">📦 Insecure Deserialization</h2>
+
+<div class="section-card">
+  <span class="badge c">CRITICAL</span>
+  <span class="vuln-id">DESER-01 · CWE-502 · Line 97</span>
+  <h3 style="margin:.5rem 0">Arbitrary Code Execution via pickle</h3>
+  <p class="desc"><code>pickle.loads()</code> on attacker-controlled hex data allows <strong>Remote Code Execution (RCE)</strong>. An attacker crafts a malicious pickle payload that executes any OS command when deserialized.</p>
+  <code class="snippet">obj = pickle.loads(bytes.fromhex(data))  # data from request.args</code>
+  <p class="rec">✅ Fix: Never deserialize untrusted data with pickle. Use JSON with a strict schema validator (e.g., pydantic).</p>
+</div>
+
+<!-- ═══ XSS / SSTI ═══ -->
+<h2 id="xss">🌐 XSS &amp; Template Injection</h2>
+
+<div class="section-card">
+  <span class="badge h">HIGH</span>
+  <span class="vuln-id">TMPL-01 · CWE-94 · Lines 55–65</span>
+  <h3 style="margin:.5rem 0">Server-Side Template Injection (SSTI)</h3>
+  <p class="desc">The login error message is concatenated into a template string passed to <code>render_template_string()</code>. An attacker can inject Jinja2 expressions like <code>{{7*7}}</code> or <code>{{config}}</code> to read secrets or achieve RCE.</p>
+  <code class="snippet">template = "..." + error + "..." ; render_template_string(template)</code>
+  <p class="rec">✅ Fix: Use static <code>.html</code> template files with <code>render_template()</code> and pass data as context variables — never build templates from user input.</p>
+</div>
+
+<div class="section-card">
+  <span class="badge h">HIGH</span>
+  <span class="vuln-id">XSS-01 · CWE-79 · Lines 68–73</span>
+  <h3 style="margin:.5rem 0">Reflected XSS in Search</h3>
+  <p class="desc">The search query is reflected directly into the HTML response without escaping. An attacker can craft a URL with <code>&lt;script&gt;alert(document.cookie)&lt;/script&gt;</code> to steal session cookies.</p>
+  <code class="snippet">output = f"&lt;h2&gt;Results for: {query}&lt;/h2&gt;"</code>
+  <p class="rec">✅ Fix: Use Jinja2 templates (auto-escaped) or <code>markupsafe.escape(query)</code> before rendering.</p>
+</div>
+
+<!-- ═══ PATH TRAVERSAL ═══ -->
+<h2 id="path">📁 Path Traversal</h2>
+
+<div class="section-card">
+  <span class="badge h">HIGH</span>
+  <span class="vuln-id">PATH-01 · CWE-22 · Lines 86–88, 100–101</span>
+  <h3 style="margin:.5rem 0">Path Traversal in File Upload &amp; Export</h3>
+  <p class="desc">File paths are constructed from user-supplied filenames without sanitisation. An attacker can supply <code>../../etc/passwd</code> to read or overwrite arbitrary files on the server.</p>
+  <code class="snippet">f.save(os.path.join("/var/uploads", f.filename))</code>
+  <p class="rec">✅ Fix: Use <code>werkzeug.utils.secure_filename()</code> and verify the resolved path stays within the intended directory using <code>os.path.realpath()</code>.</p>
+</div>
+
+<div class="section-card">
+  <span class="badge m">MEDIUM</span>
+  <span class="vuln-id">PATH-02 · CWE-22 · Line 100</span>
+  <h3 style="margin:.5rem 0">Unrestricted File Upload</h3>
+  <p class="desc">No file type or size validation. An attacker can upload a <code>.py</code> or <code>.php</code> web shell and potentially execute it, or upload a multi-GB file to exhaust disk space.</p>
+  <p class="rec">✅ Fix: Whitelist allowed extensions, validate MIME type, enforce <code>MAX_CONTENT_LENGTH</code> in Flask config.</p>
+</div>
+
+<!-- ═══ ACCESS CONTROL ═══ -->
+<h2 id="auth">🔒 Broken Access Control</h2>
+
+<div class="section-card">
+  <span class="badge h">HIGH</span>
+  <span class="vuln-id">AUTH-01 · CWE-284 · Line 110</span>
+  <h3 style="margin:.5rem 0">Role Check from Client Cookie</h3>
+  <p class="desc">The admin panel reads the <code>role</code> value from a plain (unsigned) cookie. Any user can open DevTools, set <code>role=admin</code>, and gain full admin access.</p>
+  <code class="snippet">role = request.cookies.get("role", "user")</code>
+  <p class="rec">✅ Fix: Store roles in the server-side session (Flask's signed session cookie) or in the database. Never trust client-supplied role values.</p>
+</div>
+
+<div class="section-card">
+  <span class="badge h">HIGH</span>
+  <span class="vuln-id">AUTH-02 · CWE-284 · Line 62</span>
+  <h3 style="margin:.5rem 0">Missing Authentication on Dashboard</h3>
+  <p class="desc">The <code>/dashboard</code> route has no authentication check. Any unauthenticated user can access it directly.</p>
+  <p class="rec">✅ Fix: Add a <code>@login_required</code> decorator to all protected routes.</p>
+</div>
+
+<div class="section-card">
+  <span class="badge m">MEDIUM</span>
+  <span class="vuln-id">AUTH-03 · CWE-639 · Line 80</span>
+  <h3 style="margin:.5rem 0">Insecure Direct Object Reference (IDOR)</h3>
+  <p class="desc">The <code>/profile/&lt;username&gt;</code> route returns any user's profile without checking if the requester owns that profile. An attacker can enumerate all usernames.</p>
+  <p class="rec">✅ Fix: Verify <code>session["user_id"] == requested_user_id</code> or restrict to admin role.</p>
+</div>
+
+<!-- ═══ CONFIGURATION ═══ -->
+<h2 id="cfg">⚙️ Insecure Configuration</h2>
+
+<div class="section-card">
+  <span class="badge h">HIGH</span>
+  <span class="vuln-id">CFG-01 · CWE-94 · Line 130</span>
+  <h3 style="margin:.5rem 0">Debug Mode Enabled in Production</h3>
+  <p class="desc"><code>app.run(debug=True)</code> exposes an interactive Werkzeug debugger with a PIN-protected console. If the PIN is bypassed or leaked, attackers get a Python shell on the server.</p>
+  <code class="snippet">app.run(debug=True, host="0.0.0.0", port=5000)</code>
+  <p class="rec">✅ Fix: <code>debug=False</code> always in production. Control via <code>FLASK_DEBUG</code> env var.</p>
+</div>
+
+<div class="section-card">
+  <span class="badge m">MEDIUM</span>
+  <span class="vuln-id">CFG-02 · CWE-605 · Line 130</span>
+  <h3 style="margin:.5rem 0">Binding to All Interfaces</h3>
+  <p class="desc"><code>host="0.0.0.0"</code> exposes the development server on all network interfaces, making it reachable from outside the local machine.</p>
+  <p class="rec">✅ Fix: Bind to <code>127.0.0.1</code> in development. Use a production WSGI server (gunicorn + nginx) in deployment.</p>
+</div>
+
+<div class="section-card">
+  <span class="badge m">MEDIUM</span>
+  <span class="vuln-id">CFG-03 · CWE-215 · Line 115</span>
+  <h3 style="margin:.5rem 0">Debug Endpoint Exposes Environment Variables</h3>
+  <p class="desc">The <code>/debug</code> route dumps all environment variables including secrets, database URLs, and API keys to any visitor.</p>
+  <code class="snippet">return str(dict(os.environ))</code>
+  <p class="rec">✅ Fix: Remove all debug/diagnostic endpoints before deployment.</p>
+</div>
+
+<div class="section-card">
+  <span class="badge m">MEDIUM</span>
+  <span class="vuln-id">CFG-04 · CWE-601 · Line 120</span>
+  <h3 style="margin:.5rem 0">Open Redirect</h3>
+  <p class="desc">The <code>/redirect</code> endpoint accepts any URL from the query string without validation. Attackers use this to craft convincing phishing links that appear to originate from a trusted domain.</p>
+  <code class="snippet">return redirect(request.args.get("url", "/"))</code>
+  <p class="rec">✅ Fix: Reject URLs with external schemes. Only allow relative paths or a strict allowlist of trusted domains.</p>
+</div>
+
+<!-- ═══ CSRF ═══ -->
+<h2 id="csrf">🛡️ CSRF</h2>
+
+<div class="section-card">
+  <span class="badge m">MEDIUM</span>
+  <span class="vuln-id">CSRF-01 · CWE-352 · Line 123</span>
+  <h3 style="margin:.5rem 0">Missing CSRF Protection on Password Reset</h3>
+  <p class="desc">The <code>/reset_password</code> POST endpoint has no CSRF token. An attacker can host a malicious page that silently submits a form to change the victim's password when they visit it.</p>
+  <p class="rec">✅ Fix: Use Flask-WTF's <code>CSRFProtect</code> and include <code>{{ form.hidden_tag() }}</code> in all forms.</p>
+</div>
+
+<!-- ═══ REMEDIATION SUMMARY ═══ -->
+<h2>📋 Remediation Priority Matrix</h2>
+<table>
+  <thead>
+    <tr><th>Priority</th><th>Vulnerability</th><th>Effort</th><th>Impact</th><th>Fix</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="badge c">P1</span></td><td>SQL Injection (login + search)</td><td>Low</td><td>Critical</td><td>Parameterised queries</td></tr>
+    <tr><td><span class="badge c">P1</span></td><td>Command Injection (ping)</td><td>Low</td><td>Critical</td><td>List args, shell=False, input validation</td></tr>
+    <tr><td><span class="badge c">P1</span></td><td>Pickle RCE</td><td>Low</td><td>Critical</td><td>Remove pickle, use JSON</td></tr>
+    <tr><td><span class="badge c">P1</span></td><td>Hardcoded credentials</td><td>Low</td><td>Critical</td><td>Environment variables / secrets manager</td></tr>
+    <tr><td><span class="badge h">P2</span></td><td>SSTI / XSS</td><td>Low</td><td>High</td><td>Static templates, auto-escaping</td></tr>
+    <tr><td><span class="badge h">P2</span></td><td>MD5 password hashing</td><td>Medium</td><td>High</td><td>bcrypt / argon2</td></tr>
+    <tr><td><span class="badge h">P2</span></td><td>Role from cookie (admin bypass)</td><td>Low</td><td>High</td><td>Server-side session</td></tr>
+    <tr><td><span class="badge h">P2</span></td><td>Path traversal + unrestricted upload</td><td>Low</td><td>High</td><td>secure_filename + extension whitelist</td></tr>
+    <tr><td><span class="badge h">P2</span></td><td>Debug mode + /debug endpoint</td><td>Low</td><td>High</td><td>Disable debug, remove endpoint</td></tr>
+    <tr><td><span class="badge m">P3</span></td><td>CSRF on password reset</td><td>Low</td><td>Medium</td><td>Flask-WTF CSRFProtect</td></tr>
+    <tr><td><span class="badge m">P3</span></td><td>IDOR on profile</td><td>Low</td><td>Medium</td><td>Ownership check</td></tr>
+    <tr><td><span class="badge m">P3</span></td><td>Open redirect</td><td>Low</td><td>Medium</td><td>Allowlist validation</td></tr>
+    <tr><td><span class="badge m">P3</span></td><td>Missing auth on dashboard</td><td>Low</td><td>Medium</td><td>@login_required decorator</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  CodeAlpha Cybersecurity Internship — Task 3: Secure Coding Review &nbsp;|&nbsp;
+  21 vulnerabilities identified &amp; remediated
+</footer>
+</body>
+</html>
